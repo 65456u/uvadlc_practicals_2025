@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #SBATCH --partition=gpu_mig
-#SBATCH --gpus=1
+#SBATCH --gpus=0
 #SBATCH --job-name=ExampleJob
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=9
@@ -16,4 +16,4 @@ module load Anaconda3/2025.06-1
 cd $HOME/uvadlx_practicals_2025
 # Activate your environment
 source activate dl2025
-python assignment1/train_mlp_numpy_1.py
+python assignment1/train_mlp_numpy_1.py --hidden_dims 256 128 --lr 0.001 --batch_size 1024 --epochs 500 --seed 42

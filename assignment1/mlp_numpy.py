@@ -53,9 +53,16 @@ class MLP(object):
         # PUT YOUR CODE HERE  #
         #######################
         self.layers = []
+        # First layer with activation
         self.layers.append(LinearModule(n_inputs, n_hidden[0], input_layer=True))
+        self.layers.append(ELUModule(alpha=1.0))
+        
+        # Hidden layers with activation
         for i in range(1, len(n_hidden)):
             self.layers.append(LinearModule(n_hidden[i-1], n_hidden[i]))
+            self.layers.append(ELUModule(alpha=1.0))
+        
+        # Output layer
         self.layers.append(LinearModule(n_hidden[-1], n_classes))
         self.layers.append(SoftMaxModule())
         #######################

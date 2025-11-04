@@ -168,12 +168,14 @@ class MLP:
         """Initialize MLP with specified architecture."""
         self.layers = []
         
-        # First layer
+        # First layer with activation
         self.layers.append(LinearModule(n_inputs, n_hidden[0], input_layer=True))
+        self.layers.append(ELUModule(alpha=1.0))
         
-        # Hidden layers
+        # Hidden layers with activation
         for i in range(1, len(n_hidden)):
             self.layers.append(LinearModule(n_hidden[i-1], n_hidden[i]))
+            self.layers.append(ELUModule(alpha=1.0))
         
         # Output layer
         self.layers.append(LinearModule(n_hidden[-1], n_classes))
@@ -372,18 +374,18 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     
     # Model hyperparameters
-    parser.add_argument('--hidden_dims', default=[128], type=int, nargs='+',
+    parser.add_argument('--hidden_dims', default=[512, 256], type=int, nargs='+',
                         help='Hidden dimensionalities to use inside the network. '
                              'To specify multiple, use " " to separate them. Example: "256 128"')
     
     # Optimizer hyperparameters
-    parser.add_argument('--lr', default=0.1, type=float,
+    parser.add_argument('--lr', default=0.001, type=float,
                         help='Learning rate to use')
     parser.add_argument('--batch_size', default=128, type=int,
                         help='Minibatch size')
     
     # Other hyperparameters
-    parser.add_argument('--epochs', default=10, type=int,
+    parser.add_argument('--epochs', default=100, type=int,
                         help='Max number of epochs')
     parser.add_argument('--seed', default=42, type=int,
                         help='Seed to use for reproducing results')
