@@ -83,12 +83,18 @@ def evaluate_model(model, data_loader):
     #######################
     # PUT YOUR CODE HERE  #
     #######################
-    total_accuracy = 0
+    total_correct = 0
+    total_samples = 0
+    
     for images, labels in data_loader:
-        outputs = model.forward(images)
+        # Flatten images from (batch_size, C, H, W) to (batch_size, C*H*W)
+        images_flat = images.reshape(images.shape[0], -1)
+        outputs = model.forward(images_flat)
         preds = np.argmax(outputs, axis=1)
-        total_accuracy += np.sum(preds == labels) / labels.shape[0]
-    avg_accuracy = total_accuracy / len(data_loader)
+        total_correct += np.sum(preds == labels)
+        total_samples += labels.shape[0]
+    
+    avg_accuracy = total_correct / total_samples
     #######################
     # END OF YOUR CODE    #
     #######################
@@ -142,15 +148,113 @@ def train(hidden_dims, lr, batch_size, epochs, seed, data_dir):
     #######################
 
     # TODO: Initialize model and loss module
-    model = MLP(n_inputs=32*32*3, n_hidden=hidden_dims, n_classes=10)
+    from functools import reduce
+    flatten_size = reduce(lambda x, y: x * y, cifar10['test'][0][0].shape)
+    model = MLP(n_inputs=flatten_size, n_hidden=hidden_dims, n_classes=10)
     loss_module = CrossEntropyModule()
+    
     # TODO: Training loop including validation
+    def early_stopper_wrapper(min_delta, patience, mode):
+        best_weights = None
+        best_epoch = 0
+        epochs_since_improvement = 0
+
+        def check_early_stopping(current_epoch, current_weights, current_metric):
+            nonlocal best_weights, best_epoch, epochs_since_improvement
+            if mode == 'min':
+                if current_metric < best_epoch - min_delta:
+                    best_epoch = current_metric
+                    epochs_since_improvement = 0
+                    best_weights = current_weights
+                else:
+                    epochs_since_improvement += 1
+            elif mode == 'max':
+                if current_metric > best_epoch + min_delta:
+                    best_epoch = current_metric
+                    epochs_since_improvement = 0
+                    best_weights = current_weights
+                else:
+                    epochs_since_improvement += 1
+
+            if epochs_since_improvement >= patience:
+                return True, best_weights
+            return False, None
+
+        return check_early_stopping
+    early_stopper = early_stopper_wrapper(min_delta=0.001, patience=5, mode='max')
     val_accuracies = []
+    train_losses = []
+    train_accuracies = []
+    best_val_accuracy = 0.0
+    best_model = None
+    
+    for epoch in range(epochs):
+        # Training phase
+        epoch_losses = []
+        epoch_train_accuracies = []
+        
+        for images, labels in tqdm(cifar10_loader['train'], desc=f'Epoch {epoch+1}/{epochs}'):
+            # Flatten images from (batch_size, C, H, W) to (batch_size, C*H*W)
+            images_flat = images.reshape(images.shape[0], -1)
+            
+            # Forward pass
+            predictions = model.forward(images_flat)
+            loss = loss_module.forward(predictions, labels)
+            
+            # Backward pass
+            dout = loss_module.backward(predictions, labels)
+            model.backward(dout)
+            
+            # Update parameters using SGD
+            for layer in model.layers:
+                if hasattr(layer, 'params') and layer.params['weight'] is not None:
+                    layer.params['weight'] -= lr * layer.grads['weight']
+                    layer.params['bias'] -= lr * layer.grads['bias']
+            
+            # Track metrics
+            epoch_losses.append(loss)
+            batch_accuracy = accuracy(predictions, labels)
+            epoch_train_accuracies.append(batch_accuracy)
+        
+        # Calculate average training metrics for the epoch
+        avg_train_loss = np.mean(epoch_losses)
+        avg_train_accuracy = np.mean(epoch_train_accuracies)
+        train_losses.append(avg_train_loss)
+        train_accuracies.append(avg_train_accuracy)
+        
+        # Validation phase
+        val_accuracy = evaluate_model(model, cifar10_loader['validation'])
+        val_accuracies.append(val_accuracy)
+        
+        print(f'Epoch {epoch+1}/{epochs} - Train Loss: {avg_train_loss:.4f}, Train Acc: {avg_train_accuracy:.4f}, Val Acc: {val_accuracy:.4f}')
+        
+        # Save best model
+        if val_accuracy > best_val_accuracy:
+            best_val_accuracy = val_accuracy
+            best_model = deepcopy(model)
+          
+        early_stop = early_stopper(epoch, model, val_accuracy)
+        if early_stop[0]:
+            print(f'Early stopping at epoch {epoch+1}')
+            if early_stop[1] is not None:
+                model = early_stop[1]
+            break
     
     # TODO: Test best model
-    test_accuracy = ...
+    test_accuracy = evaluate_model(best_model, cifar10_loader['test'])
+    print(f'\nTest Accuracy: {test_accuracy:.4f}')
+    
     # TODO: Add any information you might want to save for plotting
-    logging_dict = ...
+    logging_dict = {
+        'train_losses': train_losses,
+        'train_accuracies': train_accuracies,
+        'val_accuracies': val_accuracies,
+        'test_accuracy': test_accuracy,
+        'best_val_accuracy': best_val_accuracy
+    }
+    
+    # Return the best model
+    model = best_model
     #######################
     # END OF YOUR CODE    #
     #######################

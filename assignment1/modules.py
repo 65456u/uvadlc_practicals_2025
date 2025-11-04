@@ -50,7 +50,14 @@ class LinearModule(object):
         #######################
         # PUT YOUR CODE HERE  #
         #######################
-
+        if input_layer:
+            std = np.sqrt(1.0 / in_features)
+        else:
+            std = np.sqrt(2.0 / in_features)
+        self.params['weight'] = np.random.randn(out_features, in_features) * std
+        self.params['bias'] = np.zeros(out_features)
+        self.grads['weight'] = np.zeros((out_features, in_features))
+        self.grads['bias'] = np.zeros(out_features)
         #######################
         # END OF YOUR CODE    #
         #######################
@@ -73,7 +80,10 @@ class LinearModule(object):
         #######################
         # PUT YOUR CODE HERE  #
         #######################
-
+        self.x = x
+        s = x.shape[0]
+        out = self.params['weight'] @ x.T
+        out = out.T + self.params['bias']
         #######################
         # END OF YOUR CODE    #
         #######################
@@ -97,7 +107,9 @@ class LinearModule(object):
         #######################
         # PUT YOUR CODE HERE  #
         #######################
-
+        dx = dout @ self.params['weight']
+        self.grads['weight'] = dout.T @ self.x
+        self.grads['bias'] = np.sum(dout, axis=0)
         #######################
         # END OF YOUR CODE    #
         #######################
@@ -114,7 +126,10 @@ class LinearModule(object):
         #######################
         # PUT YOUR CODE HERE  #
         #######################
-        pass
+        # pass
+        self.x = None
+        self.grads['weight'] = None
+        self.grads['bias'] = None
         #######################
         # END OF YOUR CODE    #
         #######################
@@ -146,7 +161,8 @@ class ELUModule(object):
         #######################
         # PUT YOUR CODE HERE  #
         #######################
-
+        self.x = x
+        out = np.where(x >= 0, x, self.alpha * (np.exp(x) - 1))
         #######################
         # END OF YOUR CODE    #
         #######################
@@ -168,7 +184,7 @@ class ELUModule(object):
         #######################
         # PUT YOUR CODE HERE  #
         #######################
-
+        dx = dout * np.where(self.x >= 0, 1, self.alpha * np.exp(self.x))
         #######################
         # END OF YOUR CODE    #
         #######################
@@ -185,7 +201,7 @@ class ELUModule(object):
         #######################
         # PUT YOUR CODE HERE  #
         #######################
-        pass
+        self.x = None
         #######################
         # END OF YOUR CODE    #
         #######################
@@ -214,7 +230,13 @@ class SoftMaxModule(object):
         #######################
         # PUT YOUR CODE HERE  #
         #######################
-
+        # self.x = x
+        max_x = np.max(x, axis=1, keepdims=True)
+        stabilized_x = x - max_x
+        exp_x = np.exp(stabilized_x)
+        sum_exp_x = np.sum(exp_x, axis=1, keepdims=True)
+        out = exp_x / sum_exp_x
+        self.out = out
         #######################
         # END OF YOUR CODE    #
         #######################
@@ -236,7 +258,9 @@ class SoftMaxModule(object):
         #######################
         # PUT YOUR CODE HERE  #
         #######################
-
+        prod = self.out * dout
+        sum_prod = np.sum(prod, axis=1, keepdims=True)
+        dx = self.out * (dout - sum_prod)
         #######################
         # END OF YOUR CODE    #
         #######################
@@ -254,7 +278,7 @@ class SoftMaxModule(object):
         #######################
         # PUT YOUR CODE HERE  #
         #######################
-        pass
+        self.out = None
         #######################
         # END OF YOUR CODE    #
         #######################
@@ -281,7 +305,10 @@ class CrossEntropyModule(object):
         #######################
         # PUT YOUR CODE HERE  #
         #######################
-
+        S = x.shape[0]
+        x_clipped = np.clip(x, 1e-15, 1.0)
+        log_probs = -np.log(x_clipped[np.arange(S), y])
+        out = np.mean(log_probs)
         #######################
         # END OF YOUR CODE    #
         #######################
@@ -289,24 +316,29 @@ class CrossEntropyModule(object):
         return out
 
     def backward(self, x, y):
-        """
-        Backward pass.
-        Args:
-          x: input to the module
-          y: labels of the input
-        Returns:
-          dx: gradient of the loss with the respect to the input x.
+      """
+      Backward pass.
+      Args:
+        x: input to the module
+        y: labels of the input
+      Returns:
+        dx: gradient of the loss with the respect to the input x.
 
-        TODO:
-        Implement backward pass of the module.
-        """
+      TODO:
+      Implement backward pass of the module.
+      """
 
-        #######################
-        # PUT YOUR CODE HERE  #
-        #######################
+      #######################
+      # PUT YOUR CODE HERE  #
+      #######################
+      S = x.shape[0]
+      idx = np.arange(S)
+      x_clipped = np.clip(x, 1e-15, 1.0)
+      vals = (-1.0 / x_clipped[idx, y]) / S
+      dx = np.zeros_like(x)
+      dx[idx, y] = vals
+      #######################
+      # END OF YOUR CODE    #
+      #######################
 
-        #######################
-        # END OF YOUR CODE    #
-        #######################
-
-        return dx
+      return dx

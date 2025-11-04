@@ -1,0 +1,152 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.conda/
+*.conda
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb_checkpoints/
+*/.ipynb_checkpoints/*
+
+# PyCharm
+.idea/
+*.iml
+*.iws
+.idea_modules/
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Data and Datasets
+assignment1/data/
+assignment2/data/
+assignment3/data/
+data/
+datasets/
+*.h5
+*.hdf5
+*.pkl
+*.pickle
+
+# Model Checkpoints and Outputs
+*.pth
+*.pt
+*.ckpt
+*.model
+*.weights
+checkpoints/
+saved_models/
+models/
+outputs/
+results/
+runs/
+logs/
+tensorboard/
+wandb/
+
+# Plots and Figures
+*.png
+*.jpg
+*.jpeg
+*.pdf
+*.svg
+!assignment*/figures/*.png
+!assignment*/figures/*.jpg
+
+# Large files
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.rar
+*.7z
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+*~
+
+# Compiled files
+*.pyc
+*.pyo
+*.pyd
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.hypothesis/
+
+# MyPy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Profiling
+*.prof
+*.lprof
+
+# MLX specific (if applicable)
+*.mlx
+
+# Submissions and reports (adjust as needed)
+# submission*.zip
+# report*.pdf
