@@ -54,7 +54,9 @@ def accuracy(predictions, targets):
     #######################
     # PUT YOUR CODE HERE  #
     #######################
-
+    pred_labels = torch.argmax(predictions, dim=1)
+    correct = (pred_labels == targets).sum().item()
+    accuracy = correct / targets.size(0)
     #######################
     # END OF YOUR CODE    #
     #######################
@@ -82,7 +84,19 @@ def evaluate_model(model, data_loader):
     #######################
     # PUT YOUR CODE HERE  #
     #######################
-
+    model.eval()
+    total_accuracy = 0.0
+    total_samples = 0
+    with torch.no_grad():
+        for inputs, targets in data_loader:
+            inputs, targets = inputs.to(model.device), targets.to(model.device)
+            inputs = inputs.view(inputs.size(0), -1)  # Flatten the input
+            # print(inputs.shape, targets.shape)
+            outputs = model(inputs)
+            batch_size = targets.size(0)
+            total_accuracy += accuracy(outputs, targets) * batch_size
+            total_samples += batch_size
+    avg_accuracy = total_accuracy / total_samples
     #######################
     # END OF YOUR CODE    #
     #######################
@@ -143,17 +157,52 @@ def train(hidden_dims, lr, use_batch_norm, batch_size, epochs, seed, data_dir):
     #######################
     # PUT YOUR CODE HERE  #
     #######################
-
+    from functools import reduce
+    n_inputs = reduce(lambda x, y: x * y, cifar10['test'][0][0].shape)
+    n_classes = 10
     # TODO: Initialize model and loss module
-    model = ...
-    loss_module = ...
+    model = MLP(n_inputs, hidden_dims, n_classes, use_batch_norm=use_batch_norm).to(device)
+    loss_module = nn.CrossEntropyLoss()
     # TODO: Training loop including validation
+    optimizer = optim.SGD(model.parameters(), lr=lr)
+    best_val_accuracy = 0.0
+    best_model = None
+    train_accuracies = []
+    val_accuracies = []
+    train_losses = []
+    for epoch in range(epochs):
+        model.train()
+        for inputs, targets in tqdm(cifar10_loader['train']):
+            inputs, targets = inputs.to(device), targets.to(device)
+            inputs = inputs.view(inputs.size(0), -1)  # Flatten the input
+            optimizer.zero_grad()
+            outputs = model(inputs)
+            loss = loss_module(outputs, targets)
+            loss.backward()
+            optimizer.step()
+        train_accuracy = evaluate_model(model, cifar10_loader['train'])
+        val_accuracy = evaluate_model(model, cifar10_loader['validation'])
+        train_accuracies.append(train_accuracy)
+        val_accuracies.append(val_accuracy)
+        train_losses.append(loss.item())
+        if val_accuracy > best_val_accuracy:
+            best_val_accuracy = val_accuracy
+            best_model = deepcopy(model)
+        print(f'Epoch {epoch+1}/{epochs}, Train Accuracy: {train_accuracy:.4f}, Val Accuracy: {val_accuracy:.4f}')
+    model = best_model
+    #######################
     # TODO: Do optimization with the simple SGD optimizer
-    val_accuracies = ...
+    # val_accuracies = []
     # TODO: Test best model
-    test_accuracy = ...
+    test_accuracy = evaluate_model(model, cifar10_loader['test'])
     # TODO: Add any information you might want to save for plotting
-    logging_dict = ...
+    logging_dict = {
+        'train_losses': train_losses,
+        'train_accuracies': train_accuracies,
+        'val_accuracies': val_accuracies,
+        'test_accuracy': test_accuracy
+    }
+    print(f'Best Val Accuracy: {best_val_accuracy:.4f}, Test Accuracy of Best Model: {test_accuracy:.4f}')
     #######################
     # END OF YOUR CODE    #
     #######################
@@ -188,6 +237,40 @@ if __name__ == '__main__':
     args = parser.parse_args()
     kwargs = vars(args)
 
-    train(**kwargs)
+    model, val_accuracies, test_accuracy, logging_dict = train(**kwargs)
     # Feel free to add any additional functions, such as plotting of the loss curve here
-    
+    import matplotlib.pyplot as plt
+
+    plt.figure(figsize=(10, 6), dpi=300)
+    plt.plot(logging_dict['train_losses'], label='Train Loss')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.title('Training Loss Curve')
+    plt.legend()
+    # plt.show()
+    # save the plot
+    plt.savefig('loss_torch.png', dpi=300, bbox_inches='tight')
+
+    # plot train and val accuracy
+    plt.figure(figsize=(10, 6), dpi=300)
+    plt.plot(logging_dict['train_accuracies'], label='Train Accuracy')
+    plt.plot(logging_dict['val_accuracies'], label='Validation Accuracy')
+    plt.axhline(y=logging_dict['test_accuracy'], color='r', linestyle='--', label='Test Accuracy')
+    plt.xlabel('Epoch')
+    plt.ylabel('Accuracy')
+    plt.title('Train and Validation Accuracy')
+    plt.legend()
+    # plt.show()
+    # save the plot
+    plt.savefig('acc_torch.png', dpi=300, bbox_inches='tight')
+
+    # save model parameters
+    import pickle
+    with open('model_torch.pkl', 'wb') as f:
+        pickle.dump(model, f)
+    print("Model parameters saved to model_torch.pkl")
+
+    # save metrics
+    with open('metrics_torch.pkl', 'wb') as f:
+        pickle.dump(logging_dict, f)
+    print("Metrics saved to metrics_torch.pkl")
