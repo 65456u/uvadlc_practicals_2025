@@ -153,27 +153,42 @@ def loss_fn(model, X, y):
     return cross_entropy_loss(logits, y)
 
 
-def evaluate_model(model, data_loader):
+def preload_data_to_device(data_loader, flatten_size):
     """
-    Performs evaluation of the MLP model on a given dataset.
+    Preload all data batches to MLX arrays (GPU memory on Apple Silicon).
+    
+    Args:
+        data_loader: Data loader with numpy arrays
+        flatten_size: Size to flatten images to
+    
+    Returns:
+        List of (images, labels) tuples as MLX arrays
+    """
+    preloaded_batches = []
+    for images, labels in data_loader:
+        # Flatten and convert to MLX arrays
+        images_mlx = mx.array(images.reshape(images.shape[0], -1))
+        labels_mlx = mx.array(labels)
+        # Force evaluation to ensure data is on device
+        mx.eval(images_mlx, labels_mlx)
+        preloaded_batches.append((images_mlx, labels_mlx))
+    return preloaded_batches
+
+
+def evaluate_model(model, preloaded_data):
+    """
+    Performs evaluation of the MLP model on preloaded dataset.
     
     Args:
         model: An instance of 'MLP', the model to evaluate
-        data_loader: The data loader of the dataset to evaluate
+        preloaded_data: List of preloaded (images, labels) tuples as MLX arrays
     
     Returns:
         avg_accuracy: scalar float, average accuracy on the dataset
     """
     accuracies = []
     
-    for images, labels in data_loader:
-        # Flatten images from (batch_size, C, H, W) to (batch_size, C*H*W)
-        images_flat = images.reshape(images.shape[0], -1)
-        
-        # Convert to MLX arrays
-        images_mlx = mx.array(images_flat)
-        labels_mlx = mx.array(labels)
-        
+    for images_mlx, labels_mlx in preloaded_data:
         # Forward pass
         outputs = model(images_mlx)
         
@@ -218,6 +233,14 @@ def train(hidden_dims, lr, batch_size, epochs, seed, data_dir):
     # Initialize model
     from functools import reduce
     flatten_size = reduce(lambda x, y: x * y, cifar10['test'][0][0].shape)
+    
+    # Preload all data to device (GPU memory on Apple Silicon)
+    print("Preloading data to device...")
+    train_data = preload_data_to_device(cifar10_loader['train'], flatten_size)
+    val_data = preload_data_to_device(cifar10_loader['validation'], flatten_size)
+    test_data = preload_data_to_device(cifar10_loader['test'], flatten_size)
+    print(f"Preloaded {len(train_data)} training batches, {len(val_data)} validation batches, {len(test_data)} test batches")
+    
     model = MLP(n_inputs=flatten_size, n_hidden=hidden_dims, n_classes=10)
     
     # Initialize optimizer (SGD)
@@ -244,11 +267,8 @@ def train(hidden_dims, lr, batch_size, epochs, seed, data_dir):
         epoch_losses = []
         epoch_train_accuracies = []
         
-        for images, labels in tqdm(cifar10_loader['train'], desc=f'Epoch {epoch+1}/{epochs}', leave=False):
-            # Flatten and convert to MLX arrays in one go
-            batch_size = images.shape[0]
-            images_mlx = mx.array(images.reshape(batch_size, -1))
-            labels_mlx = mx.array(labels)
+        for images_mlx, labels_mlx in tqdm(train_data, desc=f'Epoch {epoch+1}/{epochs}', leave=False):
+            # Data is already on device, no conversion needed
             
             # Compute loss and gradients
             loss, grads = loss_and_grad_fn(model, images_mlx, labels_mlx)
@@ -274,7 +294,7 @@ def train(hidden_dims, lr, batch_size, epochs, seed, data_dir):
         train_accuracies.append(avg_train_accuracy)
         
         # Validation phase
-        val_accuracy = evaluate_model(model, cifar10_loader['validation'])
+        val_accuracy = evaluate_model(model, val_data)
         val_accuracies.append(val_accuracy)
         
         print(f'Epoch {epoch+1}/{epochs} - Train Loss: {avg_train_loss:.4f}, '
@@ -291,7 +311,7 @@ def train(hidden_dims, lr, batch_size, epochs, seed, data_dir):
     model.update(best_model_params)
     
     # Test best model
-    test_accuracy = evaluate_model(model, cifar10_loader['test'])
+    test_accuracy = evaluate_model(model, test_data)
     print(f'\nTest Accuracy: {test_accuracy:.4f}')
     
     # Logging dictionary
