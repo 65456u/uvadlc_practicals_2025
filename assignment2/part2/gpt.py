@@ -28,10 +28,7 @@ class BERTGELU(nn.Module):
 
 class RMSNorm(nn.Module):
     """
-    Implementation of the RMSNorm normalization layer. RMSNorm is a layer normalization
-    technique that normalizes the input tensor using the root mean square (RMS) of the
-    tensor values. This normalization technique is used in some transformer models as
-    an alternative to standard layer normalization.
+    Implementation of the RMSNorm normalization layer. RMSNorm is a layer normalization technique that normalizes the input tensor using the root mean square (RMS) of the tensor values. This normalization technique is used in some transformer models as an alternative to standard layer normalization.
     Reference: Root Mean Square Layer Normalization (RMSNorm) https://arxiv.org/abs/1910.07467
     """
     def __init__(self, dim: int, eps: float = 1e-6):
@@ -42,18 +39,15 @@ class RMSNorm(nn.Module):
     def forward(self, x):
         # Compute the norm of the input tensor and divide by the norm
         # Scale the normalized tensor by the learned weight parameter
+        rms = torch.sqrt(torch.mean(x ** 2, dim=-1, keepdim=True) + self.eps)
+        output = x / rms * self.weight
         return output
 
 class CausalSelfAttention(nn.Module):
     """
-    Implements a vanilla multi-head masked self-attention layer with a projection at the end, 
-    designed for causal (unidirectional) attention models. This layer ensures that 
-    during self-attention, a token does not attend to subsequent tokens, making it suitable for 
-    tasks like language modeling.
+    Implements a vanilla multi-head masked self-attention layer with a projection at the end, designed for causal (unidirectional) attention models. This layer ensures that during self-attention, a token does not attend to subsequent tokens, making it suitable for tasks like language modeling.
 
-    The self-attention mechanism is a key component in allowing the model to focus on different 
-    parts of the input sequence when making predictions. This implementation includes a causal mask 
-    to ensure the autoregressive property in models like GPT.
+    The self-attention mechanism is a key component in allowing the model to focus on different parts of the input sequence when making predictions. This implementation includes a causal mask to ensure the autoregressive property in models like GPT.
 
     Attributes:
         c_attn (nn.Linear): Linear layer for combined key, query, and value projections.
@@ -65,11 +59,7 @@ class CausalSelfAttention(nn.Module):
         n_embd (int): Dimensionality of the embeddings/hidden states.
 
     Parameters:
-        config (object): Configuration object with attributes n_embd, n_head, attn_pdrop, resid_pdrop, 
-                         and block_size. n_embd is the embedding dimension, n_head is the number of 
-                         attention heads, attn_pdrop is the dropout probability for the attention, 
-                         resid_pdrop is the dropout probability for the output, and block_size is the 
-                         size of the causal mask.
+        config (object): Configuration object with attributes n_embd, n_head, attn_pdrop, resid_pdrop, and block_size. n_embd is the embedding dimension, n_head is the number of attention heads, attn_pdrop is the dropout probability for the attention, resid_pdrop is the dropout probability for the output, and block_size is the size of the causal mask.
     """
 
     def __init__(self, config, debug = False):
@@ -160,14 +150,9 @@ class CausalSelfAttention(nn.Module):
 
 class TransformerDecoderBlock(nn.Module):
     """
-    Represents a single decoder layer of a Transformer model, encapsulating a layer of causal self-attention 
-    followed by a feed-forward neural network (MLP). This is a fundamental component in 
-    Transformer-based models, especially those used for tasks that require understanding the 
-    sequential or temporal relationships in data, like language modeling.
+    Represents a single decoder layer of a Transformer model, encapsulating a layer of causal self-attention followed by a feed-forward neural network (MLP). This is a fundamental component in Transformer-based models, especially those used for tasks that require understanding the sequential or temporal relationships in data, like language modeling.
 
-    The decoder layer applies layer normalization before the self-attention and the MLP to stabilize 
-    the learning process. The MLP itself consists of two linear transformations with a GELU 
-    activation in between.
+    The decoder layer applies layer normalization before the self-attention and the MLP to stabilize the learning process. The MLP itself consists of two linear transformations with a GELU activation in between.
 
     Attributes:
         layer_norm_1 (RMSNorm): Layer normalization applied before the self-attention layer.
@@ -176,9 +161,7 @@ class TransformerDecoderBlock(nn.Module):
         mlpf (nn.Sequential): A feedforward pass through the MLP with a Linear (output=4*n_embd), GELU non-linearity(use the BERTGELU), Linear (output=n_embd), and residual Dropout.
 
     Parameters:
-        config (object): Configuration object with attributes n_embd and resid_pdrop. n_embd is the 
-                         embedding dimension, and resid_pdrop is the dropout probability for the 
-                         output of the MLP.
+        config (object): Configuration object with attributes n_embd and resid_pdrop. n_embd is the embedding dimension, and resid_pdrop is the dropout probability for the output of the MLP.
     """
     def __init__(self, config):
         super().__init__()
