@@ -176,6 +176,7 @@ def train(hidden_dims, lr, use_batch_norm, batch_size, epochs, seed, data_dir):
     train_losses = []
     for epoch in range(epochs):
         model.train()
+        epoch_losses = []
         for inputs, targets in tqdm(cifar10_loader["train"]):
             inputs, targets = inputs.to(device), targets.to(device)
             inputs = inputs.view(inputs.size(0), -1)  # Flatten the input
@@ -184,16 +185,21 @@ def train(hidden_dims, lr, use_batch_norm, batch_size, epochs, seed, data_dir):
             loss = loss_module(outputs, targets)
             loss.backward()
             optimizer.step()
+            epoch_losses.append(loss.item())
+        
+        # Calculate average training loss for the epoch
+        avg_train_loss = np.mean(epoch_losses)
+        train_losses.append(avg_train_loss)
+        
         train_accuracy = evaluate_model(model, cifar10_loader["train"])
         val_accuracy = evaluate_model(model, cifar10_loader["validation"])
         train_accuracies.append(train_accuracy)
         val_accuracies.append(val_accuracy)
-        train_losses.append(loss.item())
         if val_accuracy > best_val_accuracy:
             best_val_accuracy = val_accuracy
             best_model = deepcopy(model)
         print(
-            f"Epoch {epoch+1}/{epochs}, Train Accuracy: {train_accuracy:.4f}, Val Accuracy: {val_accuracy:.4f}"
+            f"Epoch {epoch+1}/{epochs}, Train Loss: {avg_train_loss:.4f}, Train Accuracy: {train_accuracy:.4f}, Val Accuracy: {val_accuracy:.4f}"
         )
     model = best_model
     #######################
@@ -219,10 +225,7 @@ def train(hidden_dims, lr, use_batch_norm, batch_size, epochs, seed, data_dir):
 
 
 if __name__ == "__main__":
-  # Command line arguments
   parser = argparse.ArgumentParser()
-
-  # Model hyperparameters
   parser.add_argument(
     "--hidden_dims",
     default=[128],
@@ -236,11 +239,9 @@ if __name__ == "__main__":
     help="Use this option to add Batch Normalization layers to the MLP.",
   )
 
-  # Optimizer hyperparameters
   parser.add_argument("--lr", default=0.1, type=float, help="Learning rate to use")
   parser.add_argument("--batch_size", default=128, type=int, help="Minibatch size")
 
-  # Other hyperparameters
   parser.add_argument("--epochs", default=10, type=int, help="Max number of epochs")
   parser.add_argument(
     "--seed", default=42, type=int, help="Seed to use for reproducing results"
@@ -281,8 +282,10 @@ if __name__ == "__main__":
 
   model, val_accuracies, test_accuracy, logging_dict = train(**kwargs)
 
-  # Optional: also store full args JSON
   logging_dict["args"] = kwargs
+
+  # Create results directory if it doesn't exist
+  os.makedirs("results", exist_ok=True)
 
   import matplotlib.pyplot as plt
 
@@ -293,7 +296,7 @@ if __name__ == "__main__":
   plt.ylabel("Loss")
   plt.title("Training Loss Curve")
   plt.legend()
-  loss_path = f"loss_torch_{param_str}.png"
+  loss_path = f"results/loss_torch_{param_str}.png"
   plt.savefig(loss_path, dpi=300, bbox_inches="tight")
   print(f"Saved loss plot to {loss_path}")
 
@@ -311,19 +314,19 @@ if __name__ == "__main__":
   plt.ylabel("Accuracy")
   plt.title("Train and Validation Accuracy")
   plt.legend()
-  acc_path = f"acc_torch_{param_str}.png"
+  acc_path = f"results/acc_torch_{param_str}.png"
   plt.savefig(acc_path, dpi=300, bbox_inches="tight")
   print(f"Saved accuracy plot to {acc_path}")
 
   # Save model (state_dict preferred)
   import pickle
-  model_path = f"model_torch_{param_str}.pkl"
+  model_path = f"results/model_torch_{param_str}.pkl"
   with open(model_path, "wb") as f:
     pickle.dump(model, f)
   print(f"Model saved to {model_path}")
 
   # Save metrics
-  metrics_path = f"metrics_torch_{param_str}.pkl"
+  metrics_path = f"results/metrics_torch_{param_str}.pkl"
   with open(metrics_path, "wb") as f:
     pickle.dump(logging_dict, f)
   print(f"Metrics saved to {metrics_path}")
@@ -340,6 +343,7 @@ if __name__ == "__main__":
       "metrics": metrics_path,
     },
   }
-  with open(f"summary_{param_str}.json", "w") as f:
+  summary_path = f"results/summary_{param_str}.json"
+  with open(summary_path, "w") as f:
     json.dump(summary, f, indent=2)
-  print(f"Summary saved to summary_{param_str}.json")
+  print(f"Summary saved to {summary_path}")

@@ -126,10 +126,7 @@ class LinearModule(object):
         #######################
         # PUT YOUR CODE HERE  #
         #######################
-        # pass
         self.x = None
-        self.grads['weight'] = None
-        self.grads['bias'] = None
         #######################
         # END OF YOUR CODE    #
         #######################

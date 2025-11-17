@@ -154,34 +154,6 @@ def train(hidden_dims, lr, batch_size, epochs, seed, data_dir):
     loss_module = CrossEntropyModule()
     
     # TODO: Training loop including validation
-    def early_stopper_wrapper(min_delta, patience, mode):
-        best_weights = None
-        best_epoch = 0
-        epochs_since_improvement = 0
-
-        def check_early_stopping(current_epoch, current_weights, current_metric):
-            nonlocal best_weights, best_epoch, epochs_since_improvement
-            if mode == 'min':
-                if current_metric < best_epoch - min_delta:
-                    best_epoch = current_metric
-                    epochs_since_improvement = 0
-                    best_weights = current_weights
-                else:
-                    epochs_since_improvement += 1
-            elif mode == 'max':
-                if current_metric > best_epoch + min_delta:
-                    best_epoch = current_metric
-                    epochs_since_improvement = 0
-                    best_weights = current_weights
-                else:
-                    epochs_since_improvement += 1
-
-            if epochs_since_improvement >= patience:
-                return True, best_weights
-            return False, None
-
-        return check_early_stopping
-    early_stopper = early_stopper_wrapper(min_delta=0.001, patience=5, mode='max')
     val_accuracies = []
     train_losses = []
     train_accuracies = []
@@ -232,13 +204,6 @@ def train(hidden_dims, lr, batch_size, epochs, seed, data_dir):
         if val_accuracy > best_val_accuracy:
             best_val_accuracy = val_accuracy
             best_model = deepcopy(model)
-          
-        early_stop = early_stopper(epoch, model, val_accuracy)
-        if early_stop[0]:
-            print(f'Early stopping at epoch {epoch+1}')
-            if early_stop[1] is not None:
-                model = early_stop[1]
-            break
     
     # TODO: Test best model
     test_accuracy = evaluate_model(best_model, cifar10_loader['test'])
@@ -263,20 +228,13 @@ def train(hidden_dims, lr, batch_size, epochs, seed, data_dir):
 
 
 if __name__ == '__main__':
-    # Command line arguments
     parser = argparse.ArgumentParser()
-    
-    # Model hyperparameters
     parser.add_argument('--hidden_dims', default=[128], type=int, nargs='+',
                         help='Hidden dimensionalities to use inside the network. To specify multiple, use " " to separate them. Example: "256 128"')
-    
-    # Optimizer hyperparameters
     parser.add_argument('--lr', default=0.1, type=float,
                         help='Learning rate to use')
     parser.add_argument('--batch_size', default=128, type=int,
                         help='Minibatch size')
-
-    # Other hyperparameters
     parser.add_argument('--epochs', default=10, type=int,
                         help='Max number of epochs')
     parser.add_argument('--seed', default=42, type=int,
@@ -287,47 +245,95 @@ if __name__ == '__main__':
     args = parser.parse_args()
     kwargs = vars(args)
 
+    # Build parameter string for filenames
+    import os, re, json
+    hidden_str = "-".join(map(str, args.hidden_dims))
+    data_dir_name = os.path.basename(os.path.normpath(args.data_dir))
+    param_str = (
+        f"hd={hidden_str}"
+        f"_lr={args.lr}"
+        f"_bs={args.batch_size}"
+        f"_ep={args.epochs}"
+        f"_seed={args.seed}"
+        f"_dd={data_dir_name}"
+    )
+    # Sanitize (remove spaces, problematic chars)
+    param_str = re.sub(r"[^\w=.-]", "_", param_str)
+
+    # Print hyperparameters
+    print("=" * 50)
+    print("Training with the following hyperparameters:")
+    print("=" * 50)
+    for key, value in kwargs.items():
+        print(f"{key}: {value}")
+    print("=" * 50)
+
     model, val_accuracies, test_accuracy, logging_dict = train(**kwargs)
-    # Feel free to add any additional functions, such as plotting of the loss curve here
-    # plot the loss curve
+
+    logging_dict["args"] = kwargs
+
+    # Create results directory if it doesn't exist
+    os.makedirs("results", exist_ok=True)
+
     import matplotlib.pyplot as plt
 
-    # Create filename suffix from hyperparameters
-    hidden_dims_str = '_'.join(map(str, args.hidden_dims))
-    filename_suffix = f"_lr{args.lr}_bs{args.batch_size}_hd{hidden_dims_str}_ep{args.epochs}_seed{args.seed}"
-
+    # Loss curve
     plt.figure(figsize=(10, 6), dpi=300)
     plt.plot(logging_dict['train_losses'], label='Train Loss')
     plt.xlabel('Epoch')
     plt.ylabel('Loss')
     plt.title('Training Loss Curve')
     plt.legend()
-    # plt.show()
-    # save the plot
-    plt.savefig(f'loss_numpy{filename_suffix}.png', dpi=300, bbox_inches='tight')
+    loss_path = f"results/loss_numpy_{param_str}.png"
+    plt.savefig(loss_path, dpi=300, bbox_inches='tight')
+    print(f"Saved loss plot to {loss_path}")
 
-    # plot train and val accuracy
+    # Accuracy curves
     plt.figure(figsize=(10, 6), dpi=300)
     plt.plot(logging_dict['train_accuracies'], label='Train Accuracy')
     plt.plot(logging_dict['val_accuracies'], label='Validation Accuracy')
-    plt.axhline(y=logging_dict['test_accuracy'], color='r', linestyle='--', label='Test Accuracy')
+    plt.axhline(
+        y=logging_dict['test_accuracy'],
+        color='r',
+        linestyle='--',
+        label='Test Accuracy'
+    )
     plt.xlabel('Epoch')
     plt.ylabel('Accuracy')
     plt.title('Train and Validation Accuracy')
     plt.legend()
-    # plt.show()
-    # save the plot
-    plt.savefig(f'acc_numpy{filename_suffix}.png', dpi=300, bbox_inches='tight')
+    acc_path = f"results/acc_numpy_{param_str}.png"
+    plt.savefig(acc_path, dpi=300, bbox_inches='tight')
+    print(f"Saved accuracy plot to {acc_path}")
 
-    # save model parameters
+    # Save model
     import pickle
-    with open(f'model_numpy{filename_suffix}.pkl', 'wb') as f:
+    model_path = f"results/model_numpy_{param_str}.pkl"
+    with open(model_path, 'wb') as f:
         pickle.dump(model, f)
-    print(f"Model parameters saved to model_numpy{filename_suffix}.pkl")
+    print(f"Model saved to {model_path}")
 
-    # save metrics
-    with open(f'metrics_numpy{filename_suffix}.pkl', 'wb') as f:
+    # Save metrics
+    metrics_path = f"results/metrics_numpy_{param_str}.pkl"
+    with open(metrics_path, 'wb') as f:
         pickle.dump(logging_dict, f)
-    print(f"Metrics saved to metrics_numpy{filename_suffix}.pkl")
+    print(f"Metrics saved to {metrics_path}")
+
+    # Also save a lightweight JSON summary
+    summary = {
+        "best_val_accuracy": max(val_accuracies) if val_accuracies else None,
+        "test_accuracy": test_accuracy,
+        "params": kwargs,
+        "filenames": {
+            "loss": loss_path,
+            "accuracy": acc_path,
+            "model": model_path,
+            "metrics": metrics_path,
+        },
+    }
+    summary_path = f"results/summary_{param_str}.json"
+    with open(summary_path, "w") as f:
+        json.dump(summary, f, indent=2)
+    print(f"Summary saved to {summary_path}")
 
 
