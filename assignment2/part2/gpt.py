@@ -99,23 +99,36 @@ class CausalSelfAttention(nn.Module):
             Tuple[torch.Tensor, torch.Tensor]: Tuple containing the modified query and key tensors.
         """
         # Generate RoPE embeddings dynamically based on T
-        seq_pos =  torch.arange(T, device=xq.device, dtype=xq.dtype)  # Shape: (T)
-        freqs =  torch.einsum("i , j -> i j", seq_pos, self.inv_freq)   # Shape: (T, dim // 2)
-        pos_emb =  torch.cat((freqs.sin(), freqs.cos()), dim=-1).unsqueeze(0).unsqueeze(0)  # Shape: (1, 1, T, dim)
-        
+        seq_pos = torch.arange(T, device=xq.device, dtype=xq.dtype)  # Shape: (T)
+        freqs = torch.einsum("i , j -> i j", seq_pos, self.inv_freq)  # Shape: (T, dim // 2)
+        emb = torch.cat((freqs, freqs), dim=-1) # (T, head_dim)
+        pos_emb = emb[None, None, :, :] # (1, 1, T, head_dim)
+
         # Split pos into sin and cos components, repeating each to match xq and xk dimensions
         pos_sin = pos_emb.sin()
         pos_cos = pos_emb.cos()
         
         # Apply RoPE transformation: pair and rotate dimensions
         # Rotate query and key tensors
-        def rotate_half(x):
-            half_dim = x.shape[-1] // 2
-            x1 = x[..., :half_dim]
-            x2 = x[..., half_dim:]
-            return torch.cat((-x2, x1), dim=-1)
-        xq_rot = (xq * pos_cos) + (rotate_half(xq) * pos_sin)
-        xk_rot = (xk * pos_cos) + (rotate_half(xk) * pos_sin)
+        def rotate(x: torch.Tensor, sin: torch.Tensor, cos: torch.Tensor) -> torch.Tensor:
+            # x: (B, nh, T, head_dim)
+            x_even = x[..., 0::2]
+            x_odd = x[..., 1::2]
+            sin_even = sin[..., 0::2]
+            sin_odd = sin[..., 1::2]
+            cos_even = cos[..., 0::2]
+            cos_odd = cos[..., 1::2]
+
+            x_even_rot = x_even * cos_even - x_odd * sin_even
+            x_odd_rot = x_odd * cos_odd + x_even * sin_odd
+
+            # interleave even and odd back to last dim
+            x_rot = torch.stack([x_even_rot, x_odd_rot], dim=-1)
+            x_rot = x_rot.flatten(-2)
+            return x_rot
+
+        xq_rot = rotate(xq, pos_sin, pos_cos)
+        xk_rot = rotate(xk, pos_sin, pos_cos)
         
         return xq_rot, xk_rot
         
@@ -457,17 +470,15 @@ class GPT(nn.Module):
 
             # forward the model to get the logits for the index in the sequence
             # pluck the logits at the final step and scale by desired temperature
+            logits = self.forward(idx_cond)
+            logits = logits[:, -1, :] / temperature
 
             if not do_sample:
                 # take the most likely token
-                logits = self.forward(idx_cond)
-                logits = logits[:, -1, :] / temperature
                 idx_next = torch.argmax(logits, dim=-1)
             
             else:
                 # apply softmax to convert logits to (normalized) probabilities
-                logits = self.forward(idx_cond)
-                logits = logits[:, -1, :] / temperature
                 probs = F.softmax(logits, dim=-1)
 
                 # optionally only consider top-k logits for sampling. 
@@ -495,8 +506,8 @@ class GPT(nn.Module):
 
                     probs = probs.masked_fill(indices_to_remove, 0.0)
                     probs = probs / probs.sum(dim=-1, keepdim=True)
+                idx_next = torch.multinomial(probs, num_samples=1).squeeze(-1)
             
             # append sampled index to the running sequence and continue
             idx = torch.cat((idx, idx_next.unsqueeze(-1)), dim=1)
-
         return idx
