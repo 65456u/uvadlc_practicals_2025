@@ -433,7 +433,7 @@ class GPT(nn.Module):
             x = block(x)
         # Apply final layer normalization and linear layer to produce logits
         x = self.transformer.ln_f(x)
-        logits = self.transformer.head(x)
+        logits = self.lm_head(x)
 
         return logits
 
