@@ -13,7 +13,7 @@ module load 2025
 module load Anaconda3/2025.06-1
 
 # Your job starts in the directory where you call sbatch
-cd $HOME/uvadlx_practicals_2025
+cd $HOME/uvadlc_practicals_2025/assignment2/part2
 # Activate your environment
 source activate dl2025
 srun python train.py --use_flash_attn --compile --num_epochs 5
