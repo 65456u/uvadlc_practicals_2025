@@ -482,7 +482,7 @@ class GPT(nn.Module):
 
             if not do_sample:
                 # take the most likely token
-                idx_next = torch.argmax(logits[:, -1, :], dim=-1, keepdim=True)
+                idx_next = torch.argmax(logits, dim=-1, keepdim=True)
             
             else:
                 # apply softmax to convert logits to (normalized) probabilities
