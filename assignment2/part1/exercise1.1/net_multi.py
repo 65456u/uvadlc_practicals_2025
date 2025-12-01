@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Experiment with different convolution types
+Multi-device support: CUDA, MPS (Apple Silicon), CPU
 """
 
 import torch
@@ -9,7 +10,8 @@ import numpy as np
 np.random.seed(42)  # for reproducibility
 torch.backends.cudnn.deterministic = True
 torch.manual_seed(42)
-torch.cuda.manual_seed_all(42)
+if torch.cuda.is_available():
+    torch.cuda.manual_seed_all(42)
 
 from torch.utils.data import DataLoader, TensorDataset
 import torch.nn as nn
@@ -24,6 +26,24 @@ import matplotlib
 matplotlib.use('Agg')  # Use non-interactive backend
 import matplotlib.pyplot as plt
 from utils import gen_box_data, gen_box_data_test
+
+
+def get_device():
+    """
+    Automatically detect and return the best available device.
+    Priority: CUDA > MPS > CPU
+    """
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+        print(f"Using CUDA: {torch.cuda.get_device_name(0)}")
+    elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+        device = torch.device("mps")
+        print("Using MPS (Apple Silicon)")
+    else:
+        device = torch.device("cpu")
+        print("Using CPU")
+    return device
+
 
 class Net(nn.Module):
     '''
@@ -118,11 +138,19 @@ if __name__ == '__main__':
     parser.add_argument("--batch_size", type=int, default=200, help="size of each image batch")
     parser.add_argument("--log", action="store_true", default=False,
                         help="log and store metrics and visualized results")
+    parser.add_argument("--device", type=str, default="auto",
+                        help="device to use: 'auto', 'cuda', 'mps', 'cpu'")
 
     opt = parser.parse_args()
     print(opt)
 
-    use_gpu = torch.cuda.is_available()
+    # Device selection
+    if opt.device == "auto":
+        device = get_device()
+    else:
+        device = torch.device(opt.device)
+        print(f"Using specified device: {device}")
+    
     net_model = 'net_model_wts.pth'
     conv_type = opt.conv_type
     net_type = opt.net_type
@@ -137,6 +165,7 @@ if __name__ == '__main__':
         
         # Save configuration
         config_dict = vars(opt)
+        config_dict['device'] = str(device)  # Add device info
         with open(os.path.join(log_dir, "config.json"), "w") as f:
             json.dump(config_dict, f, indent=4)
 
@@ -212,8 +241,7 @@ if __name__ == '__main__':
 
         torch.manual_seed(m)
         net = Net(conv_type=conv_type, net_type=net_type)
-        if use_gpu:
-            net = net.cuda()
+        net = net.to(device)  # Move model to device
         print(net)
         param_size = 0
         for param in net.parameters():
@@ -266,11 +294,9 @@ if __name__ == '__main__':
                     images = images.type(torch.FloatTensor)
                     label_class = label_class.type(torch.LongTensor)
 
-                    if use_gpu:
-                        images = Variable(images.cuda())
-                        label_class = Variable(label_class.cuda())
-                    else:
-                        images, label_class = Variable(images), Variable(label_class)
+                    # Move data to device
+                    images = images.to(device)
+                    label_class = label_class.to(device)
 
                     optimizer.zero_grad()
                     outputs_class = net(images)
@@ -308,9 +334,9 @@ if __name__ == '__main__':
                     label_class = data[1]
                     label_class = label_class.type(torch.LongTensor)
 
-                    if use_gpu:
-                        images = Variable(images.cuda())
-                        label_class = Variable(label_class.cuda())
+                    # Move data to device
+                    images = images.to(device)
+                    label_class = label_class.to(device)
 
                     outputs_class = net(images)
 
@@ -363,9 +389,9 @@ if __name__ == '__main__':
             label_class = data[1]
             label_class = label_class.type(torch.LongTensor)
 
-            if use_gpu:
-                images = Variable(images.cuda())
-                label_class = Variable(label_class.cuda())
+            # Move data to device
+            images = images.to(device)
+            label_class = label_class.to(device)
 
             outputs_class = net(images)
 
@@ -407,6 +433,7 @@ if __name__ == '__main__':
     print("*******************************************")
     print(" Type of convolution : ", conv_type)
     print(" Type of network : ", net_type)
+    print(" Device : ", device)
     print("*******************************************")
     print('Results for validation dataset', results_val)
     print('mean: {:.4f} std: {:.4f} for validation'.format(mean_val, std_val))
@@ -419,6 +446,7 @@ if __name__ == '__main__':
         metrics_summary = {
             'conv_type': conv_type,
             'net_type': net_type,
+            'device': str(device),
             'validation': {
                 'all_runs': results_val,
                 'mean': float(mean_val),
@@ -477,7 +505,7 @@ if __name__ == '__main__':
         axes[1, 1].legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize='small')
         axes[1, 1].grid(True)
         
-        plt.suptitle(f'Training Progress: {conv_type} - {net_type}', fontsize=16)
+        plt.suptitle(f'Training Progress: {conv_type} - {net_type} ({device})', fontsize=16)
         plt.tight_layout()
         plt.savefig(os.path.join(log_dir, 'training_curves.png'), dpi=150, bbox_inches='tight')
         plt.close()
@@ -508,7 +536,7 @@ if __name__ == '__main__':
         axes[1].legend()
         axes[1].grid(True, alpha=0.3)
         
-        plt.suptitle(f'Final Accuracies: {conv_type} - {net_type}', fontsize=16)
+        plt.suptitle(f'Final Accuracies: {conv_type} - {net_type} ({device})', fontsize=16)
         plt.tight_layout()
         plt.savefig(os.path.join(log_dir, 'final_accuracies.png'), dpi=150, bbox_inches='tight')
         plt.close()
@@ -526,7 +554,7 @@ if __name__ == '__main__':
         ax.set_xticks(x_pos)
         ax.set_xticklabels(categories)
         ax.set_ylabel('Accuracy (%)')
-        ax.set_title(f'Summary Statistics: {conv_type} - {net_type}\n({opt.n_repeat} runs)')
+        ax.set_title(f'Summary Statistics: {conv_type} - {net_type} ({device})\n({opt.n_repeat} runs)')
         ax.grid(True, alpha=0.3)
         
         # Add value labels on bars

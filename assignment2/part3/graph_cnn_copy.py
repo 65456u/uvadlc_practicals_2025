@@ -36,13 +36,9 @@ class MatrixGraphConvolution(nn.Module):
         :param num_nodes: number of nodes in the graph.
         :return: inverted degree matrix with shape [num_nodes, num_nodes]. Set degree of nodes without an edge to 1.
         """
-        # Count incoming edges for each node (degree)
-        degree_vector = torch.zeros(num_nodes, dtype=torch.float32)
-        degree_vector = degree_vector.index_add(0, edge_index[1], torch.ones(edge_index.size(1), dtype=torch.float32))
-        # Set degree of nodes without edges to 1 to avoid division by zero
-        degree_vector[degree_vector == 0] = 1.0
-        inverted_degree_vector = 1.0 / degree_vector
-        inverted_degree_matrix = torch.diag(inverted_degree_vector)
+        degree_vector = ...
+        inverted_degree_vector = ...
+        inverted_degree_matrix = ...
         return inverted_degree_matrix
 
     def forward(self, x, edge_index):
@@ -55,8 +51,7 @@ class MatrixGraphConvolution(nn.Module):
         """
         A = self.make_adjacency_matrix(edge_index, x.size(0))
         D_inv = self.make_inverted_degree_matrix(edge_index, x.size(0))
-        # GCN propagation (shape-safe): D^-1 @ A @ X @ W^T + X @ B^T
-        out = D_inv @ A @ (x @ self.W.T) + (x @ self.B.T)
+        out = ...
         return out
 
 class MessageGraphConvolution(nn.Module):
@@ -79,17 +74,9 @@ class MessageGraphConvolution(nn.Module):
 
         Hint: check out torch.Tensor.index_add function
         """
-        sources, destinations = edge_index
-        # Get messages from source nodes
-        messages = x[sources]
-        # Aggregate messages by destination node
-        aggregated_messages = torch.zeros_like(x)
-        aggregated_messages = aggregated_messages.index_add(0, destinations, messages)
-        # Normalize by degree
-        sum_weight = torch.zeros(x.size(0), dtype=torch.float32)
-        sum_weight = sum_weight.index_add(0, destinations, torch.ones(edge_index.size(1), dtype=torch.float32))
-        sum_weight[sum_weight == 0] = 1.0
-        aggregated_messages = aggregated_messages / sum_weight.unsqueeze(1)
+        messages = ...
+        aggregated_messages = ...
+        sum_weight = ...
 
         return aggregated_messages
 
@@ -101,8 +88,7 @@ class MessageGraphConvolution(nn.Module):
         :param messages: messages vector with shape [num_nodes, num_in_features]
         :return: updated values of nodes. shape: [num_nodes, num_out_features]
         """
-        # Apply transformation: W @ messages^T + B @ x^T
-        x = (self.W @ messages.T + self.B @ x.T).T
+        x = ...
         return x
 
     def forward(self, x, edge_index):
@@ -143,40 +129,17 @@ class GraphAttention(nn.Module):
         edge_index, _ = add_self_loops(edge_index)
 
         sources, destinations = edge_index
-        # Apply linear transformation W to all nodes: Wh
-        messages = (self.W @ x.T).T  # [num_nodes, out_features]
-        
-        # Prepare attention mechanism input: concatenate transformed source and destination features
-        # For each edge, concatenate Wh_i || Wh_j
-        attention_inputs = torch.cat([messages[sources], messages[destinations]], dim=1)  # [num_edges, 2*out_features]
-        
-        # Compute attention coefficients: e_ij = LeakyReLU(a^T [Wh_i || Wh_j])
-        activations = F.leaky_relu(attention_inputs @ self.a, negative_slope=0.2)
-        
-        # Compute softmax numerators: exp(e_ij)
-        edge_weights_numerator = torch.exp(activations)
-        
-        # Weight messages by attention: alpha_ij * Wh_j
-        weighted_messages = edge_weights_numerator.unsqueeze(1) * messages[sources]
-        
-        # Compute softmax denominators: sum_k exp(e_ik) for each destination node i
-        softmax_denominator = torch.zeros(x.size(0), dtype=torch.float32)
-        softmax_denominator = softmax_denominator.index_add(0, destinations, edge_weights_numerator)
-        
-        # Aggregate weighted messages
-        aggregated_messages = torch.zeros(x.size(0), messages.size(1))
-        aggregated_messages = aggregated_messages.index_add(0, destinations, weighted_messages)
-        # Normalize by softmax denominator
-        aggregated_messages = aggregated_messages / softmax_denominator.unsqueeze(1)
+        activations = ...
+        messages = ...
 
-        debug_data = {
-            'edge_weights': edge_weights_numerator,
-            'softmax_weights': softmax_denominator,
-            # Per-edge messages after adding self-loops (matches test expectation)
-            'messages': messages[sources]
-        }
+        attention_inputs = ...
 
-        if debug:
-            return aggregated_messages, debug_data
-        return aggregated_messages
+        edge_weights_numerator = ...
+        weighted_messages = ...
+
+        softmax_denominator = ...
+
+        aggregated_messages = ...
+        return aggregated_messages, {'edge_weights': edge_weights_numerator, 'softmax_weights': softmax_denominator,
+                                     'messages': messages}
 

@@ -1,0 +1,100 @@
+k\k\k\Starting experiments at Thu Nov 27 01:12:24 CET 2025
+k\k\
+=== Running model: gcn ===
+Seed set to 42
+GPU available: True (mps), used: False
+TPU available: False, using: 0 TPU cores
+/Users/a/miniforge3/envs/dl2025/lib/python3.12/site-packages/lightning/pytorch/trainer/setup.py:166: GPU available but not used. You can set it by doing `Trainer(accelerator='gpu')`.
+
+  | Name  | Type    | Params | Mode 
+------------------------------------------
+0 | model | GraphNN | 357 K  | train
+------------------------------------------
+357 K     Trainable params
+0         Non-trainable params
+357 K     Total params
+1.428     Total estimated model params size (MB)
+4         Modules in train mode
+0         Modules in eval mode
+Sanity Checking: |          | 0/? [00:00<?, ?it/s]/Users/a/miniforge3/envs/dl2025/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 15 worker processes in total. Our suggested max number of worker in current system is 10 (`cpuset` is not taken into account), which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
+  warnings.warn(
+/Users/a/miniforge3/envs/dl2025/lib/python3.12/site-packages/lightning/pytorch/trainer/connectors/data_connector.py:428: Consider setting `persistent_workers=True` in 'val_dataloader' to speed up the dataloader worker initialization.
+Sanity Checking: |          | 0/? [00:00<?, ?it/s]Sanity Checking DataLoader 0:   0%|          | 0/1 [00:00<?, ?it/s]Sanity Checking DataLoader 0: 100%|██████████| 1/1 [00:00<00:00, 51.62it/s]                                                                           /Users/a/miniforge3/envs/dl2025/lib/python3.12/site-packages/lightning/pytorch/trainer/connectors/data_connector.py:428: Consider setting `persistent_workers=True` in 'train_dataloader' to speed up the dataloader worker initialization.
+/Users/a/miniforge3/envs/dl2025/lib/python3.12/site-packages/lightning/pytorch/loops/fit_loop.py:310: The number of training batches (1) is smaller than the logging interval Trainer(log_every_n_steps=50). Set a lower value for log_every_n_steps if you want to see logs for the training epoch.
+Training: |          | 0/? [00:00<?, ?it/s]Training: |          | 0/? [00:00<?, ?it/s]Epoch 0:   0%|          | 0/1 [00:00<?, ?it/s]Epoch 0: 100%|██████████| 1/1 [00:07<00:00,  0.13it/s]Epoch 0: 100%|██████████| 1/1 [00:07<00:00,  0.13it/s, v_num=4]Traceback (most recent call last):
+  File "/Users/a/w/uvadlc_practicals_2025/assignment2/part3/train.py", line 33, in <module>
+    train()
+  File "/Users/a/w/uvadlc_practicals_2025/assignment2/part3/train.py", line 30, in train
+    trainer.fit(lightning_model, datamodule=data_module)
+  File "/Users/a/miniforge3/envs/dl2025/lib/python3.12/site-packages/lightning/pytorch/trainer/trainer.py", line 560, in fit
+    call._call_and_handle_interrupt(
+  File "/Users/a/miniforge3/envs/dl2025/lib/python3.12/site-packages/lightning/pytorch/trainer/call.py", line 49, in _call_and_handle_interrupt
+    return trainer_fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/a/miniforge3/envs/dl2025/lib/python3.12/site-packages/lightning/pytorch/trainer/trainer.py", line 598, in _fit_impl
+    self._run(model, ckpt_path=ckpt_path)
+  File "/Users/a/miniforge3/envs/dl2025/lib/python3.12/site-packages/lightning/pytorch/trainer/trainer.py", line 1011, in _run
+    results = self._run_stage()
+              ^^^^^^^^^^^^^^^^^
+  File "/Users/a/miniforge3/envs/dl2025/lib/python3.12/site-packages/lightning/pytorch/trainer/trainer.py", line 1055, in _run_stage
+    self.fit_loop.run()
+  File "/Users/a/miniforge3/envs/dl2025/lib/python3.12/site-packages/lightning/pytorch/loops/fit_loop.py", line 216, in run
+    self.advance()
+  File "/Users/a/miniforge3/envs/dl2025/lib/python3.12/site-packages/lightning/pytorch/loops/fit_loop.py", line 458, in advance
+    self.epoch_loop.run(self._data_fetcher)
+  File "/Users/a/miniforge3/envs/dl2025/lib/python3.12/site-packages/lightning/pytorch/loops/training_epoch_loop.py", line 153, in run
+    self.on_advance_end(data_fetcher)
+  File "/Users/a/miniforge3/envs/dl2025/lib/python3.12/site-packages/lightning/pytorch/loops/training_epoch_loop.py", line 398, in on_advance_end
+    self.val_loop.run()
+  File "/Users/a/miniforge3/envs/dl2025/lib/python3.12/site-packages/lightning/pytorch/loops/utilities.py", line 179, in _decorator
+    return loop_run(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/a/miniforge3/envs/dl2025/lib/python3.12/site-packages/lightning/pytorch/loops/evaluation_loop.py", line 123, in run
+    self.reset()
+  File "/Users/a/miniforge3/envs/dl2025/lib/python3.12/site-packages/lightning/pytorch/loops/evaluation_loop.py", line 259, in reset
+    iter(data_fetcher)  # creates the iterator inside the fetcher
+    ^^^^^^^^^^^^^^^^^^
+  File "/Users/a/miniforge3/envs/dl2025/lib/python3.12/site-packages/lightning/pytorch/loops/fetchers.py", line 105, in __iter__
+    super().__iter__()
+  File "/Users/a/miniforge3/envs/dl2025/lib/python3.12/site-packages/lightning/pytorch/loops/fetchers.py", line 52, in __iter__
+    self.iterator = iter(self.combined_loader)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/a/miniforge3/envs/dl2025/lib/python3.12/site-packages/lightning/pytorch/utilities/combined_loader.py", line 351, in __iter__
+    iter(iterator)
+  File "/Users/a/miniforge3/envs/dl2025/lib/python3.12/site-packages/lightning/pytorch/utilities/combined_loader.py", line 155, in __iter__
+    self._load_current_iterator()
+  File "/Users/a/miniforge3/envs/dl2025/lib/python3.12/site-packages/lightning/pytorch/utilities/combined_loader.py", line 173, in _load_current_iterator
+    self.iterators = [iter(self.iterables[self._iterator_idx])]
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/a/miniforge3/envs/dl2025/lib/python3.12/site-packages/torch/utils/data/dataloader.py", line 494, in __iter__
+    return self._get_iterator()
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/Users/a/miniforge3/envs/dl2025/lib/python3.12/site-packages/torch_geometric/loader/node_loader.py", line 267, in _get_iterator
+    return super()._get_iterator()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/a/miniforge3/envs/dl2025/lib/python3.12/site-packages/torch/utils/data/dataloader.py", line 427, in _get_iterator
+    return _MultiProcessingDataLoaderIter(self)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/a/miniforge3/envs/dl2025/lib/python3.12/site-packages/torch/utils/data/dataloader.py", line 1172, in __init__
+    w.start()
+  File "/Users/a/miniforge3/envs/dl2025/lib/python3.12/multiprocessing/process.py", line 121, in start
+    self._popen = self._Popen(self)
+                  ^^^^^^^^^^^^^^^^^
+  File "/Users/a/miniforge3/envs/dl2025/lib/python3.12/multiprocessing/context.py", line 224, in _Popen
+    return _default_context.get_context().Process._Popen(process_obj)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/a/miniforge3/envs/dl2025/lib/python3.12/multiprocessing/context.py", line 289, in _Popen
+    return Popen(process_obj)
+           ^^^^^^^^^^^^^^^^^^
+  File "/Users/a/miniforge3/envs/dl2025/lib/python3.12/multiprocessing/popen_spawn_posix.py", line 32, in __init__
+    super().__init__(process_obj)
+  File "/Users/a/miniforge3/envs/dl2025/lib/python3.12/multiprocessing/popen_fork.py", line 19, in __init__
+    self._launch(process_obj)
+  File "/Users/a/miniforge3/envs/dl2025/lib/python3.12/multiprocessing/popen_spawn_posix.py", line 58, in _launch
+    self.pid = util.spawnv_passfds(spawn.get_executable(),
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/a/miniforge3/envs/dl2025/lib/python3.12/multiprocessing/util.py", line 454, in spawnv_passfds
+    errpipe_read, errpipe_write = os.pipe()
+                                  ^^^^^^^^^
+OSError: [Errno 24] Too many open files
+Epoch 0: 100%|██████████| 1/1 [00:10<00:00,  0.09it/s, v_num=4]Experiment for model 'gcn' failed.
