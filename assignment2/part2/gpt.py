@@ -120,12 +120,12 @@ class CausalSelfAttention(nn.Module):
         # Apply RoPE transformation: pair and rotate dimensions
         # Rotate query and key tensors
         def rotate_half(x):
-            x1 = x[..., ::2]
-            x2 = x[..., 1::2]
-            return torch.stack((-x2, x1), dim=-1).reshape_as(x)
+            x1 = x[..., :x.shape[-1] // 2]
+            x2 = x[..., x.shape[-1] // 2:]
+            return torch.cat((-x2, x1), dim=-1)
+        
         xq_rot = xq * pos_cos + rotate_half(xq) * pos_sin
         xk_rot = xk * pos_cos + rotate_half(xk) * pos_sin
-
         return xq_rot, xk_rot
         
     def forward(self, x):
