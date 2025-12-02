@@ -1,7 +1,7 @@
 #!/bin/bash
 # Test script for evaluating GPT model's knowledge on Grimm's Fairy Tales
 
-MODEL_PATH="./logs/gpt-mini/version_0/checkpoints"
+MODEL_PATH="./logs/gpt-mini/version_5/checkpoints"
 TOKENS=100
 SAMPLES=3
 
