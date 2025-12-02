@@ -65,12 +65,12 @@ python generate.py --model_weights_folder $MODEL_PATH \
     --num_samples $SAMPLES --num_generated_tokens $TOKENS \
     --temperature 0.8 --top_p 0.9
 
-# Test 9: Top-k sampling
+# Test 9: Top-k sampling (without top_p)
 echo -e "\n>>> Test 9: Top-k Sampling (k=50)"
 python generate.py --model_weights_folder $MODEL_PATH \
     --prompt "Once upon a time" \
     --num_samples $SAMPLES --num_generated_tokens $TOKENS \
-    --temperature 0.8 --top_k 50
+    --temperature 0.8 --top_k 50 --top_p 0
 
 # Test 10: Greedy decoding (deterministic)
 echo -e "\n>>> Test 10: Greedy Decoding (no sampling)"
