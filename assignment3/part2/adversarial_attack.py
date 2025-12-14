@@ -46,13 +46,14 @@ def fgsm_loss(model, criterion, inputs, labels, defense_args, return_preds = Tru
     model.zero_grad()
     original_outputs = model(inputs)
     clean_loss = criterion(original_outputs, labels)
-    clean_loss.backward()
-    data_grad = inputs.grad.data
+    data_grad = torch.autograd.grad(outputs=clean_loss,
+                                     inputs=inputs,
+                                     retain_graph=True,
+                                     create_graph=False)[0]
     # Calculate the perturbation
     perturbed_inputs = fgsm_attack(inputs.detach(), data_grad, epsilon)
     
     # Calculate the loss for the perturbed image
-    model.zero_grad()
     adv_outputs = model(perturbed_inputs)
     adv_loss = criterion(adv_outputs, labels)
     # Combine the two losses
