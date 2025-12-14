@@ -1,0 +1,118 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{hyperref}
+
+\title{PGD Attack and Defense: Implementation and Analysis}
+\author{Assignment 3 - Part 2}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section{Question 1: PGD Implementation and Findings}
+
+\subsection{Implementation}
+
+\textbf{PGD Attack (\texttt{pgd\_attack} in \texttt{adversarial\_attack.py}):}
+The PGD attack iteratively perturbs the input and projects back onto the $\epsilon$-ball:
+\begin{verbatim}
+def pgd_attack(model, data, target, criterion, args):
+    x_orig = data.detach()
+    x_adv = x_orig.clone()
+    for _ in range(num_iter):
+        x_adv.requires_grad_(True)
+        model.zero_grad()
+        loss = criterion(model(x_adv), target)
+        loss.backward()
+        with torch.no_grad():
+            x_adv = x_adv + alpha * x_adv.grad.sign()
+            perturbation = torch.clamp(x_adv - x_orig, -epsilon, epsilon)
+            x_adv = torch.clamp(x_orig + perturbation, 0, 1)
+        x_adv = x_adv.detach()
+    return x_adv
+\end{verbatim}
+
+\textbf{PGD in \texttt{test\_attack}:}
+\begin{verbatim}
+elif attack_function == PGD:
+    perturbed_data = pgd_attack(model, data, target, criterion, attack_args)
+    output = model(perturbed_data)
+\end{verbatim}
+
+\textbf{PGD Defense in \texttt{utils.py}:}
+\begin{verbatim}
+elif defense_strategy == PGD and phase == 'train':
+    adv_inputs = pgd_attack(model, inputs, labels, criterion, defense_args)
+    inputs = torch.cat([inputs, adv_inputs], dim=0)
+    labels = torch.cat([labels, labels], dim=0)
+    optimizer.zero_grad()
+    outputs = model(inputs)
+    loss = criterion(outputs, labels)
+    _, preds = torch.max(outputs, 1)
+\end{verbatim}
+
+\subsection{Findings}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lccc}
+\toprule
+\textbf{Configuration} & \textbf{Clean Acc.} & \textbf{FGSM Acc.} & \textbf{PGD Acc.} \\
+\midrule
+No Defense (pretrained) & 92.96\% & 41.68\% & 21.40\% \\
+FGSM Defense (5 epochs) & 89.88\% & 58.56\% & 43.68\% \\
+\bottomrule
+\end{tabular}
+\caption{Configuration: $\epsilon_{\text{FGSM}}=0.1$, $\epsilon_{\text{PGD}}=0.03$, $\alpha_{\text{PGD}}=0.007$, 10 iterations.}
+\end{table}
+
+PGD is a stronger attack than FGSM: under PGD attack, the model retains only 21.40\% accuracy compared to 41.68\% under FGSM. This is because PGD iteratively refines the perturbation to find adversarial examples closer to the worst-case within the $\epsilon$-ball, whereas FGSM takes only a single step.
+
+\section{Question 2: Adversarial Loss vs. Adding Adversarial Examples to Batch}
+
+The two defense approaches are \textbf{different}, though they share the same goal of improving robustness.
+
+\textbf{Adversarial Loss (FGSM-style):}
+\[
+\mathcal{L}_{\text{total}} = \mathcal{L}(x, y) + \alpha \cdot \mathcal{L}(x_{\text{adv}}, y)
+\]
+Both terms are combined before backpropagation. The parameter $\alpha$ controls the relative importance of adversarial robustness versus clean accuracy.
+
+\textbf{Adding to Batch (PGD-style):}
+The batch is augmented with adversarial examples, then standard loss is computed:
+\[
+\mathcal{L} = \frac{1}{2N}\sum_{i=1}^{N}\left[\mathcal{L}(x_i, y_i) + \mathcal{L}(x_{\text{adv},i}, y_i)\right]
+\]
+
+\textbf{When they align:} If $\alpha = 1$, both methods weight clean and adversarial examples equally, producing equivalent gradient contributions.
+
+\textbf{When they diverge:}
+\begin{enumerate}
+    \item Adversarial loss allows flexible weighting via $\alpha$; batch augmentation treats both equally.
+    \item Batch augmentation doubles the effective batch size, affecting batch normalization statistics and optimizer dynamics.
+    \item In FGSM loss, adversarial examples share the computation graph with the gradient update. In batch augmentation, PGD examples are pre-computed and detached before the forward pass.
+\end{enumerate}
+
+\section{Question 3: FGSM vs. PGD Tradeoff}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lcc}
+\toprule
+\textbf{Aspect} & \textbf{FGSM} & \textbf{PGD} \\
+\midrule
+Gradient computations & 1 & $k$ (number of iterations) \\
+Attack strength & Weaker & Stronger \\
+Training time & Fast & $\sim k\times$ slower \\
+Robustness achieved & Moderate & Higher \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{FGSM Advantage:} Computational efficiency. FGSM requires only one forward and one backward pass, making it practical for large-scale adversarial training where computational resources are limited.
+
+\textbf{PGD Advantage:} Stronger adversarial examples and better robustness. PGD iteratively refines the perturbation to find examples closer to the worst-case within the $\epsilon$-ball. Models trained against PGD attacks are more robust because they learn to defend against a stronger adversary.
+
+\end{document}

@@ -1,0 +1,60 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{hyperref}
+
+\title{FGSM Defense Training: Results and Analysis}
+\author{Assignment 3 - Part 2}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section{FGSM Defense Implementation}
+
+The FGSM defense was implemented in the \texttt{fgsm\_loss} function in \texttt{adversarial\_attack.py}. The modified loss combines the standard cross-entropy loss on clean examples with the loss on adversarially perturbed examples:
+\[
+\mathcal{L}_{\text{total}} = \mathcal{L}(x, y) + \alpha \cdot \mathcal{L}(x + \epsilon \cdot \text{sign}(\nabla_x \mathcal{L}), y)
+\]
+where $\alpha$ controls the weight of the adversarial loss term.
+
+To train with FGSM defense, we used:
+\begin{verbatim}
+python train.py --pretrained --train_strats fgsm --num_epochs 5
+\end{verbatim}
+
+\section{Experimental Results}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lccc}
+\toprule
+\textbf{Model Configuration} & \textbf{Clean Acc.} & \textbf{FGSM Acc.} & \textbf{PGD Acc.} \\
+\midrule
+Pretrained, No Defense & 92.96\% & 41.68\% & 21.40\% \\
+Pretrained + FGSM Defense (5 epochs) & 89.88\% & 58.56\% & 43.68\% \\
+\midrule
+Pretrained + Augmentations, No Defense & 92.44\% & 41.16\% & 18.84\% \\
+\bottomrule
+\end{tabular}
+\caption{Accuracy comparison with and without FGSM defense}
+\end{table}
+
+\textbf{Configuration:} $\epsilon_{\text{FGSM}} = 0.1$, $\alpha_{\text{FGSM}} = 0.5$, $\epsilon_{\text{PGD}} = 0.03$, $\alpha_{\text{PGD}} = 0.007$, PGD iterations = 10.
+
+\subsection{Analysis}
+
+The FGSM defense significantly improves adversarial robustness. FGSM accuracy increases from 41.68\% to 58.56\% (+16.88 pp), and PGD accuracy improves from 21.40\% to 43.68\% (+22.28 pp). Notably, the defense also improves robustness against PGD attacks, even though training only used FGSM perturbations.
+
+However, even with defense, the model still performs significantly worse on adversarial examples than on clean examples (58.56\% vs 89.88\% for FGSM), confirming the expected behavior.
+
+Using pretraining is essential---it provides a strong initialization so that 5 epochs of adversarial fine-tuning can effectively improve robustness. Standard augmentations alone do not provide meaningful defense, as they address geometric invariances rather than gradient-based perturbations.
+
+\section{Question: Tradeoff Between Defending or Not}
+
+There is a clear accuracy-robustness tradeoff: clean accuracy drops from 92.96\% to 89.88\% (−3.08 pp) when using FGSM defense, while adversarial accuracy improves substantially.
+
+This tradeoff occurs because the defense modifies the loss landscape to make the model robust to worst-case perturbations. By training on adversarial examples, the model learns smoother decision boundaries that are harder to exploit, but these boundaries may not fit the clean data distribution as tightly. In essence, the model sacrifices some performance on the exact training distribution to gain robustness in a neighborhood around each input. This is a fundamental tension: a model that perfectly fits the clean data has sharp decision boundaries that are easy to cross with small perturbations, while a robust model has more conservative boundaries that sacrifice some clean accuracy for stability.
+
+\end{document}

@@ -1,0 +1,86 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{hyperref}
+
+\title{PGD Attack: Implementation and Analysis}
+\author{Assignment 3 - Part 2}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section{PGD Implementation}
+
+The PGD (Projected Gradient Descent) attack was implemented in \texttt{adversarial\_attack.py}. PGD is an iterative extension of FGSM that applies multiple smaller steps while projecting back onto the $\epsilon$-ball:
+
+\begin{verbatim}
+def pgd_attack(model, data, target, criterion, args):
+    x_orig = data.detach()
+    x_adv = x_orig.clone()
+    for _ in range(num_iter):
+        x_adv.requires_grad_(True)
+        loss = criterion(model(x_adv), target)
+        loss.backward()
+        with torch.no_grad():
+            x_adv = x_adv + alpha * x_adv.grad.sign()
+            perturbation = torch.clamp(x_adv - x_orig, -epsilon, epsilon)
+            x_adv = torch.clamp(x_orig + perturbation, 0, 1)
+        x_adv = x_adv.detach()
+    return x_adv
+\end{verbatim}
+
+The PGD defense in \texttt{utils.py} adds adversarial examples to the training batch:
+\begin{verbatim}
+adv_inputs = pgd_attack(model, inputs, labels, criterion, defense_args)
+inputs = torch.cat([inputs, adv_inputs], dim=0)
+labels = torch.cat([labels, labels], dim=0)
+\end{verbatim}
+
+\section{Question 1: Adversarial Loss vs. Adding Adversarial Examples to Batch}
+
+The two defense approaches are \textbf{different}, though related.
+
+\textbf{Adversarial Loss (FGSM-style):}
+\[
+\mathcal{L}_{\text{total}} = \mathcal{L}(x, y) + \alpha \cdot \mathcal{L}(x_{\text{adv}}, y)
+\]
+This computes gradients through both terms simultaneously. The clean and adversarial losses are combined before backpropagation, meaning the gradient update accounts for both objectives in a single step with a weighted combination.
+
+\textbf{Adding Adversarial Examples to Batch (PGD-style):}
+The batch is doubled by concatenating clean and adversarial examples, then standard cross-entropy is computed over the augmented batch. Effectively:
+\[
+\mathcal{L}_{\text{batch}} = \frac{1}{2N}\sum_{i=1}^{N}\left[\mathcal{L}(x_i, y_i) + \mathcal{L}(x_{\text{adv},i}, y_i)\right]
+\]
+
+\textbf{When they align:} If $\alpha = 1$ in the adversarial loss formulation, the gradient contributions are mathematically equivalent (both terms weighted equally).
+
+\textbf{When they diverge:}
+\begin{itemize}
+    \item The adversarial loss allows flexible weighting via $\alpha$, enabling emphasis on clean or adversarial performance.
+    \item Batch augmentation treats both equally and changes the effective batch size (which affects batch normalization statistics and learning dynamics).
+    \item In FGSM loss, the adversarial example is generated using gradients that are also used for the final update (shared computation graph), whereas in batch augmentation, PGD examples are pre-computed and detached.
+\end{itemize}
+
+\section{Question 2: FGSM vs. PGD Tradeoff}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lcc}
+\toprule
+\textbf{Aspect} & \textbf{FGSM} & \textbf{PGD} \\
+\midrule
+Computation & 1 forward + 1 backward & $k$ forward + $k$ backward \\
+Attack strength & Weaker (single step) & Stronger (iterative) \\
+Training speed & Fast & Slow ($\sim k\times$ slower) \\
+Robustness achieved & Moderate & Higher \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{FGSM Advantage:} Computational efficiency. FGSM requires only one gradient computation, making adversarial training significantly faster. This is crucial for large-scale training where PGD's iterative nature becomes prohibitively expensive.
+
+\textbf{PGD Advantage:} Stronger attack and better robustness. PGD finds adversarial examples closer to the worst-case perturbation within the $\epsilon$-ball by iteratively refining the attack. Models trained with PGD defense are typically more robust because they are exposed to stronger adversaries during training, following the principle that defending against a stronger attack generalizes to weaker attacks.
+
+\end{document}

@@ -1,0 +1,129 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{hyperref}
+
+\title{FGSM Attack: Implementation and Analysis}
+\author{Assignment 3 - Part 2}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section{FGSM Implementation}
+
+The FGSM (Fast Gradient Sign Method) attack was implemented in \texttt{adversarial\_attack.py}. The key components are:
+
+\subsection{fgsm\_attack Function}
+\begin{verbatim}
+def fgsm_attack(image, data_grad, epsilon=0.25):
+    grad_sign = data_grad.sign()
+    perturbed_image = image + epsilon * grad_sign
+    perturbed_image = torch.clamp(perturbed_image, 0, 1)
+    return perturbed_image
+\end{verbatim}
+
+The function computes the sign of the gradient with respect to the input, scales it by $\epsilon$, and adds it to the original image to create an adversarial example that maximizes the loss.
+
+\subsection{FGSM in test\_attack}
+In the test loop, after computing the loss on the original image, we:
+\begin{enumerate}
+    \item Backpropagate to get gradients with respect to the input
+    \item Apply the FGSM perturbation using the computed gradients
+    \item Re-classify the perturbed image
+\end{enumerate}
+
+\section{Experimental Results}
+
+We evaluated a pretrained ResNet18 on CIFAR-10 with and without adversarial attacks. The configuration used was:
+
+\begin{table}[h]
+\centering
+\begin{tabular}{ll}
+\toprule
+\textbf{Parameter} & \textbf{Value} \\
+\midrule
+Model & ResNet18 (pretrained) \\
+Batch size & 64 \\
+$\epsilon_{\text{FGSM}}$ & 0.1 \\
+$\alpha_{\text{FGSM}}$ & 0.5 \\
+$\epsilon_{\text{PGD}}$ & 0.03 \\
+$\alpha_{\text{PGD}}$ & 0.007 \\
+PGD iterations & 10 \\
+\bottomrule
+\end{tabular}
+\caption{Experimental configuration}
+\end{table}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lccc}
+\toprule
+\textbf{Experiment} & \textbf{Clean Acc.} & \textbf{FGSM Acc.} & \textbf{PGD Acc.} \\
+\midrule
+Pretrained, No Augmentations & 92.96\% & 41.68\% & 21.40\% \\
+Pretrained + Augmentations (5 epochs) & 92.44\% & 41.16\% & 18.84\% \\
+Pretrained + FGSM Defense (5 epochs) & 89.88\% & 58.56\% & 43.68\% \\
+\bottomrule
+\end{tabular}
+\caption{Accuracy results under different configurations}
+\end{table}
+
+\subsection{Effect of $\epsilon$ on FGSM Attack}
+\begin{table}[h]
+\centering
+\begin{tabular}{cccc}
+\toprule
+$\epsilon_{\text{FGSM}}$ & \textbf{Clean Acc.} & \textbf{FGSM Acc.} & \textbf{PGD Acc.} \\
+\midrule
+0.05 & 93.24\% & 47.08\% & 21.72\% \\
+0.10 & 93.68\% & 41.12\% & 20.28\% \\
+0.20 & 92.64\% & 32.56\% & 21.00\% \\
+0.30 & 92.24\% & 26.36\% & 20.12\% \\
+\bottomrule
+\end{tabular}
+\caption{Effect of $\epsilon$ on attack success}
+\end{table}
+
+As $\epsilon$ increases, the FGSM attack becomes more effective (lower adversarial accuracy), confirming that larger perturbations lead to more successful attacks.
+
+\section{Questions}
+
+\subsection{Question 1: Why would adding a random perturbation with size $\epsilon$ not have a similar effect as an FGSM perturbation of the same size?}
+
+A random perturbation with size $\epsilon$ would not have the same effect as FGSM for the following reasons:
+
+\begin{enumerate}
+    \item \textbf{Directionality:} FGSM specifically perturbs in the direction that \emph{maximizes} the loss function (i.e., the direction of the gradient sign). This is the locally optimal direction to push the model's prediction away from the correct class. A random perturbation has no such guarantee---it may even accidentally decrease the loss or have negligible effect on the decision boundary.
+    
+    \item \textbf{High-dimensional geometry:} In high-dimensional spaces (e.g., images with thousands of pixels), a random direction is almost certainly orthogonal to any specific direction, including the gradient direction. This means random noise mostly affects directions that are irrelevant to the loss landscape.
+    
+    \item \textbf{Expected effect:} Mathematically, if the perturbation is random with magnitude $\epsilon$, its expected dot product with the gradient is zero, meaning it has no expected effect on increasing the loss. In contrast, FGSM guarantees a positive dot product with the gradient (equal to $\epsilon \cdot \|\nabla_x L\|_1$), ensuring the loss increases.
+\end{enumerate}
+
+\subsection{Question 2: Transferability of Adversarial Examples Between Models}
+
+When we train models A and B on disjoint subsets of the same dataset, adversarial perturbations computed using model A's gradients still affect model B. The likely causes are:
+
+\begin{enumerate}
+    \item \textbf{Similar learned representations:} Both models are trained for the same classification task on data from the same distribution. They learn similar decision boundaries and feature representations, even with different training subsets. The loss landscape with respect to inputs has similar structure for both models.
+    
+    \item \textbf{Shared vulnerable directions:} The gradient direction that increases the loss for model A often corresponds to moving toward decision boundaries that are similarly positioned in model B. These ``adversarial subspaces'' are properties of the data distribution and task, not specific model weights.
+    
+    \item \textbf{Linear nature of DNNs:} As argued by Goodfellow et al., the high-dimensional linear behavior of neural networks (due to activation functions like ReLU) means that small perturbations aligned with the weight vectors cause proportionally large changes in output. Models trained on similar data have correlated weight directions.
+    
+    \item \textbf{Feature alignment:} Both models extract similar low-level and mid-level features (edges, textures, shapes). Perturbations that corrupt these shared features affect both models similarly.
+\end{enumerate}
+
+This phenomenon is known as \textbf{adversarial transferability} and is a fundamental property of neural network classifiers trained on the same task.
+
+\subsection{Question 3: Effect of Data Augmentation}
+
+From our experiments, data augmentation provides negligible improvement against adversarial attacks. Without augmentation, the model achieves 41.68\% FGSM accuracy and 21.40\% PGD accuracy. With augmentation (5 epochs of fine-tuning), these become 41.16\% and 18.84\%, respectively---essentially unchanged or slightly worse.
+
+This is expected because standard augmentations (random flips and crops) address geometric invariances, not adversarial robustness. Adversarial perturbations operate in a fundamentally different space: they are gradient-based pixel-level modifications designed to maximize loss, whereas augmentations apply spatial transformations. Since the model never sees adversarial examples during training, it cannot learn to resist them.
+
+In contrast, FGSM adversarial training dramatically improves robustness (FGSM accuracy: 41.68\% $\to$ 58.56\%, PGD accuracy: 21.40\% $\to$ 43.68\%), confirming that explicit exposure to adversarial examples is necessary for defense.
+
+\end{document}
