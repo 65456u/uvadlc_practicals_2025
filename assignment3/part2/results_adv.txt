@@ -1,0 +1,146 @@
+======================================
+Experiment started at Sun Dec 14 18:44:00 CET 2025
+======================================
+
+=== Exp 1: Pretrained, No Augmentations ===
+pretrained=True
+defense=standard
+augmentations=False
+epochs=0
+batch_size=64
+epsilon_fgsm=0.1
+alpha_fgsm=0.5
+epsilon_pgd=0.03
+alpha_pgd=0.007
+num_iter_pgd=10
+clean_acc=0.9268
+fgsm_acc=0.4088
+pgd_acc=0.2224
+
+=== Exp 2: Pretrained + Augmentations (fine-tune 5 epochs) ===
+pretrained=True
+defense=standard
+augmentations=True
+epochs=5
+batch_size=64
+epsilon_fgsm=0.1
+alpha_fgsm=0.5
+epsilon_pgd=0.03
+alpha_pgd=0.007
+num_iter_pgd=10
+clean_acc=0.9244
+fgsm_acc=0.4400
+pgd_acc=0.2216
+
+=== Exp 3: Pretrained + FGSM Defense (5 epochs) ===
+======================================
+Experiment started at Sun Dec 14 20:22:03 CET 2025
+======================================
+
+=== Exp 1: Pretrained, No Augmentations ===
+pretrained=True
+defense=standard
+augmentations=False
+epochs=0
+batch_size=64
+epsilon_fgsm=0.1
+alpha_fgsm=0.5
+epsilon_pgd=0.03
+alpha_pgd=0.007
+num_iter_pgd=10
+clean_acc=0.9296
+fgsm_acc=0.4168
+pgd_acc=0.2140
+
+=== Exp 2: Pretrained + Augmentations (fine-tune 5 epochs) ===
+pretrained=True
+defense=standard
+augmentations=True
+epochs=5
+batch_size=64
+epsilon_fgsm=0.1
+alpha_fgsm=0.5
+epsilon_pgd=0.03
+alpha_pgd=0.007
+num_iter_pgd=10
+clean_acc=0.9244
+fgsm_acc=0.4116
+pgd_acc=0.1884
+
+=== Exp 3: Pretrained + FGSM Defense (5 epochs) ===
+pretrained=True
+defense=fgsm
+augmentations=False
+epochs=5
+batch_size=64
+epsilon_fgsm=0.1
+alpha_fgsm=0.5
+epsilon_pgd=0.03
+alpha_pgd=0.007
+num_iter_pgd=10
+clean_acc=0.8988
+fgsm_acc=0.5856
+pgd_acc=0.4368
+
+=== Exp 4: Pretrained, epsilon_fgsm=0.05 ===
+pretrained=True
+defense=standard
+augmentations=False
+epochs=0
+batch_size=64
+epsilon_fgsm=0.05
+alpha_fgsm=0.5
+epsilon_pgd=0.03
+alpha_pgd=0.007
+num_iter_pgd=10
+clean_acc=0.9324
+fgsm_acc=0.4708
+pgd_acc=0.2172
+
+=== Exp 4: Pretrained, epsilon_fgsm=0.1 ===
+pretrained=True
+defense=standard
+augmentations=False
+epochs=0
+batch_size=64
+epsilon_fgsm=0.1
+alpha_fgsm=0.5
+epsilon_pgd=0.03
+alpha_pgd=0.007
+num_iter_pgd=10
+clean_acc=0.9368
+fgsm_acc=0.4112
+pgd_acc=0.2028
+
+=== Exp 4: Pretrained, epsilon_fgsm=0.2 ===
+pretrained=True
+defense=standard
+augmentations=False
+epochs=0
+batch_size=64
+epsilon_fgsm=0.2
+alpha_fgsm=0.5
+epsilon_pgd=0.03
+alpha_pgd=0.007
+num_iter_pgd=10
+clean_acc=0.9264
+fgsm_acc=0.3256
+pgd_acc=0.2100
+
+=== Exp 4: Pretrained, epsilon_fgsm=0.3 ===
+pretrained=True
+defense=standard
+augmentations=False
+epochs=0
+batch_size=64
+epsilon_fgsm=0.3
+alpha_fgsm=0.5
+epsilon_pgd=0.03
+alpha_pgd=0.007
+num_iter_pgd=10
+clean_acc=0.9224
+fgsm_acc=0.2636
+pgd_acc=0.2012
+
+======================================
+All experiments finished at Sun Dec 14 20:44:57 CET 2025
