@@ -35,8 +35,8 @@ def sample_reparameterize(mean, std):
     #######################
     # PUT YOUR CODE HERE  #
     #######################
-    z = None
-    raise NotImplementedError
+    eps = torch.randn_like(std)
+    z = mean + std * eps
     #######################
     # END OF YOUR CODE    #
     #######################
@@ -58,8 +58,8 @@ def KLD(mean, log_std):
     #######################
     # PUT YOUR CODE HERE  #
     #######################
-    KLD = None
-    raise NotImplementedError
+    var = torch.exp(2 * log_std)
+    KLD = 0.5 * (var + mean**2 - 1 - 2 * log_std).sum(dim=-1)
     #######################
     # END OF YOUR CODE    #
     #######################
@@ -78,8 +78,8 @@ def elbo_to_bpd(elbo, img_shape):
     #######################
     # PUT YOUR CODE HERE  #
     #######################
-    bpd = None
-    raise NotImplementedError
+    num_dims = torch.tensor(img_shape[1:]).prod()
+    bpd = elbo * torch.log2(torch.tensor(torch.e)) / num_dims
     #######################
     # END OF YOUR CODE    #
     #######################
@@ -110,8 +110,52 @@ def visualize_manifold(decoder, grid_size=20):
     #######################
     # PUT YOUR CODE HERE  #
     #######################
-    img_grid = None
-    raise NotImplementedError
+    device = next(decoder.parameters()).device
+
+    # Percentiles: [0.5/grid, 1.5/grid, ..., (grid-0.5)/grid]
+    p = (torch.arange(grid_size, device=device, dtype=torch.float32) + 0.5) / grid_size
+
+    # Map percentiles to z values using inverse CDF of N(0,1)
+    normal = torch.distributions.Normal(
+        loc=torch.tensor(0.0, device=device),
+        scale=torch.tensor(1.0, device=device),
+    )
+    z_vals = normal.icdf(p)  # [grid_size]
+
+    # Create grid in latent space
+    z1, z2 = torch.meshgrid(z_vals, z_vals, indexing="ij")  # each [grid_size, grid_size]
+    z = torch.stack([z1, z2], dim=-1).reshape(-1, 2)        # [grid_size^2, 2]
+
+    # Decode
+    logits = decoder(z)
+
+    # Ensure logits are [B, K, H, W] for softmax
+    if logits.dim() == 4:
+        # common: [B, K, H, W] or [B, H, W, K]
+        if logits.size(1) < logits.size(-1) and logits.size(1) < logits.size(-2):
+            # assume [B, K, H, W]
+            logits_bkhw = logits
+        else:
+            # assume [B, H, W, K] -> [B, K, H, W]
+            logits_bkhw = logits.permute(0, 3, 1, 2).contiguous()
+    elif logits.dim() == 2:
+        # If decoder outputs flattened pixels, treat as Bernoulli mean via sigmoid
+        # shape [B, M] -> reshape to [B, 1, H, W] is ambiguous, so we error out
+        raise ValueError("Decoder output is 2D; expected categorical logits with shape [B,K,H,W] or [B,H,W,K].")
+    else:
+        raise ValueError(f"Unexpected decoder output shape: {tuple(logits.shape)}")
+
+    # Convert logits -> probabilities
+    probs = torch.softmax(logits_bkhw, dim=1)  # [B, K, H, W]
+    K = probs.size(1)
+
+    # Convert categorical probabilities to an "output mean" image in [0,1]
+    # mean = E[value] where value in {0,...,K-1} normalized by (K-1)
+    values = torch.linspace(0.0, 1.0, steps=K, device=device).view(1, K, 1, 1)
+    mean_img = (probs * values).sum(dim=1, keepdim=True)  # [B, 1, H, W]
+
+    # Make a grid image: grid_size x grid_size
+    img_grid = make_grid(mean_img, nrow=grid_size, padding=2)
     #######################
     # END OF YOUR CODE    #
     #######################

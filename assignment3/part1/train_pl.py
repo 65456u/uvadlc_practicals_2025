@@ -70,10 +70,21 @@ class VAE(pl.LightningModule):
         #######################
         # PUT YOUR CODE HERE  #
         #######################
-        L_rec = None
-        L_reg = None
-        bpd = None
-        raise NotImplementedError
+        B, C, H, W = imgs.shape
+        mean, log_std = self.encoder(imgs)  # [B, z_dim], [B, z_dim]
+        std = torch.exp(log_std)  # Convert log_std to std
+        z = sample_reparameterize(mean, std)  # [B, z_dim]
+        logits = self.decoder(z)  # [B, C*16, H, W]
+        logits = logits.view(B, C, 16, H, W)
+        logits_ce = logits.view(B * C, 16, H, W)
+        targets = imgs.long().view(B * C, H, W)  # pixel values in {0,...,15}
+        ce = F.cross_entropy(logits_ce, targets, reduction="none")  # [B*C, H, W]
+        L_rec_per = ce.view(B, C, H, W).sum(dim=(1, 2, 3))          # [B]
+        L_rec = L_rec_per.mean()                                    # scalar
+        L_reg_per=KLD(mean, log_std)                          # [B]
+        L_reg = L_reg_per.mean()                                    # scalar
+        nll_per = L_rec_per + L_reg_per  # [B]
+        bpd = elbo_to_bpd(nll_per, imgs.shape).mean()
         #######################
         # END OF YOUR CODE    #
         #######################
@@ -91,8 +102,14 @@ class VAE(pl.LightningModule):
         #######################
         # PUT YOUR CODE HERE  #
         #######################
-        x_samples = None
-        raise NotImplementedError
+        z = torch.randn(batch_size, self.hparams.z_dim, device=self.device)  # [B, z_dim]
+        logits = self.decoder(z)  # [B, C*16, H, W]
+        B, _, H, W = logits.shape
+        C = 1  # MNIST has 1 channel
+        logits = logits.view(B, C, 16, H, W)
+        probs = F.softmax(logits, dim=2)  # [B, C, 16, H, W]
+        labels = torch.arange(16, device=self.device).view(1, 1, 16, 1, 1)  # [1, 1, 16, 1, 1]
+        x_samples = (probs * labels).sum(dim=2)  # [B, C, H, W]
         #######################
         # END OF YOUR CODE    #
         #######################
